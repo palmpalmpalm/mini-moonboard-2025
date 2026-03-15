@@ -10,7 +10,9 @@ import string
 import json
 import time
 import random
-from colormap import hex2rgb
+def hex2rgb(hexcolor):
+    h = hexcolor.lstrip('#')
+    return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
 
 def clamp(n, minn, maxn):
     return max(min(maxn, n), minn)

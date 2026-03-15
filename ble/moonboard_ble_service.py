@@ -202,7 +202,7 @@ class MoonboardBLE():
 
     def _start_mqtt(self):
         # Connect to MQTT
-        hostname = "raspi-moonboard" # FIXME
+        hostname = "localhost"
         port = 1883 # FIXME
         self._client = mqtt.Client()
         self._client.connect(hostname, port,60)

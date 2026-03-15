@@ -8,6 +8,7 @@ import string,json
 import subprocess
 import logging
 from moonboard_app_protocol import UnstuffSequence, decode_problem_string
+import paho.mqtt.client as mqtt
 
 import os
 import errno
@@ -34,8 +35,11 @@ class RxCharacteristic(Characteristic):
         self.process_rx=process_rx
 
     def WriteValue(self, value, options):
-        pass
-        #self.process_rx(value)
+        hex_str = ''.join([format(b, '02x') for b in value])
+        print("GATT WriteValue: " + hex_str, flush=True)
+        sys.stderr.write("GATT WriteValue: " + hex_str + "\n")
+        sys.stderr.flush()
+        self.process_rx(hex_str)
 
 class UartService(Service):
     def __init__(self, bus,path, index, process_rx):
@@ -81,11 +85,24 @@ class MoonApplication(dbus.service.Object):
         self.services = []
         self.logger=logger
         self.unstuffer= UnstuffSequence(self.logger)
+        self._start_mqtt()
         dbus.service.Object.__init__(self, bus, self.path)
         self.add_service(UartService(bus,self.get_path(), 0, self.process_rx)) 
 
         monitor_thread = threading.Thread(target=self.monitor_btmon, daemon=True)
         monitor_thread.start()
+
+    def _start_mqtt(self):
+        hostname = "localhost"
+        port = 1883
+        self._mqtt_client = mqtt.Client()
+        self._mqtt_client.connect(hostname, port, 60)
+        self._mqtt_client.loop_start()
+        self._sendmessage("/status", "Starting")
+
+    def _sendmessage(self, topic="/none", message="None"):
+        ttopic = "moonboard/ble" + topic
+        self._mqtt_client.publish(ttopic, str(message))
 
     def _restart_advertising(self):
         """Re-setup and start BLE advertising after a disconnect."""
@@ -131,10 +148,6 @@ class MoonApplication(dbus.service.Object):
                                 continue
                             if 'Disconnect Complete' in line:
                                 self._restart_advertising()
-                            elif 'Data:' in line:
-                                data = line.replace(' ','').replace('\x1b','').replace('[0m','').replace('Data:','')
-                                self.process_rx(data)
-                                self.logger.info('New data '+ data)
             except Exception as e:
                 self.logger.error('btmon monitoring error: ' + str(e))
 
@@ -164,11 +177,13 @@ class MoonApplication(dbus.service.Object):
     def process_rx(self,ba):
         new_problem_string= self.unstuffer.process_bytes(ba)
         flags = self.unstuffer.flags
+        if "M" not in flags:
+            flags.append("M")
 
         if new_problem_string is not None:
             problem=decode_problem_string(new_problem_string, flags)
             self.new_problem(json.dumps(problem))
-            self._sendmessage("/problem", json.dumps(problem)) # FIXME
+            self._sendmessage("/problem", json.dumps(problem))
             self.unstuffer.flags = []
             start_adv(self.logger)
 

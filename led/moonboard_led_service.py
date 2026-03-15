@@ -45,20 +45,13 @@ class Database():
         PINK = (255,96,136)
 
         self._MOONBOARD.clear()
-        for s in msg["START"]:
-            self._MOONBOARD.layout.set(self._MOONBOARD.MAPPING[s], GREEN)
-        for m in msg["MOVES"]:
-            self._MOONBOARD.layout.set(self._MOONBOARD.MAPPING[m], BLUE)        
-        for t in msg["LEFT"]:
-            self._MOONBOARD.layout.set(self._MOONBOARD.MAPPING[t], VIOLET)
-        for t in msg["FOOT"]:
-            self._MOONBOARD.layout.set(self._MOONBOARD.MAPPING[t], CYAN)
-        for t in msg["MATCH"]:
-            self._MOONBOARD.layout.set(self._MOONBOARD.MAPPING[t], PINK)
-        for t in msg["TOP"]:
-            self._MOONBOARD.layout.set(self._MOONBOARD.MAPPING[t], RED)
-        
-        #self._MOONBOARD.layout.set(self._MOONBOARD.MAPPING[ihold], color_1er_done)
+        for hold_type, color in [("START", GREEN), ("MOVES", BLUE), ("LEFT", VIOLET),
+                                  ("FOOT", CYAN), ("MATCH", PINK), ("TOP", RED)]:
+            for h in msg.get(hold_type, []):
+                if h in self._MOONBOARD.MAPPING:
+                    self._MOONBOARD.layout.set(self._MOONBOARD.MAPPING[h], color)
+                else:
+                    logging.warning("Hold %s not in mapping, skipping", h)
         self._MOONBOARD.layout.push_to_driver()
 
 
@@ -112,4 +105,4 @@ if __name__ == "__main__":
     driver_type = args.driver_type
 
     d = Database(driver_type=driver_type, led_layout=led_layout)
-    d._record_data(hostname="raspi-moonboard")   
+    d._record_data(hostname="localhost")   
