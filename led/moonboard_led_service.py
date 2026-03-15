@@ -25,11 +25,27 @@ logging.basicConfig(level=logging.DEBUG,
 class Database():
     def __init__(self, driver_type="", led_layout=""):
         self._MOONBOARD = MoonBoard(driver_type, led_layout)
+        self._startup_animation()
 
-        # Init timers
         self._time_current = time.time()
         self._time_last = self._time_current 
-        self._update_interval = 1.0 #0.5 # Update interval for display in seconds
+        self._update_interval = 1.0
+
+    def _startup_animation(self):
+        num_pixels = self._MOONBOARD.MAPPING.get("num_pixels",
+                        max(v for k, v in self._MOONBOARD.MAPPING.items() if k != "num_pixels") + 1)
+        colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255)]
+        for color in colors:
+            for i in range(num_pixels):
+                self._MOONBOARD.layout.set(i, color)
+                if i >= 4:
+                    self._MOONBOARD.layout.set(i - 4, (0, 0, 0))
+                self._MOONBOARD.layout.push_to_driver()
+                time.sleep(0.008)
+            for i in range(num_pixels - 4, num_pixels):
+                self._MOONBOARD.layout.set(i, (0, 0, 0))
+            self._MOONBOARD.layout.push_to_driver()
+        self._MOONBOARD.clear()
 
 
     def _on_message(self, client, userdata, message):
